@@ -5,8 +5,6 @@ import base64
 import json
 import os
 
-# Start the bot (just for me, 'cause I always forget) – python3 ~/Documents/Ferbot/Ferbot.py
-
 TOKEN = os.environ["BOT_TOKEN"]
 MASTER_KEY = os.environ["MASTER_KEY"].encode()
 f_master = Fernet(MASTER_KEY)
@@ -115,6 +113,6 @@ async def resetkey(interaction: discord.Interaction):
         
 @tree.command(name="help", description="Get a list of available commands")
 async def help(interaction: discord.Interaction):
-        await interaction.response.send_message("/encode – Encrypt a message using the saved key or a custom key. optionally DM someone the message.\n\n/decode – Decrypt a message using the saved key or a custom key.\n\n/makekey – Generate a new 32-byte key (URL-safe base64).\n\n/savekey – Save a key to make decoding and encoding faster and easier.\n\n/mykey – View the saved key.\n\n/resetkey – Reset/delete the saved key.", ephemeral=True)
+        await interaction.response.send_message("/encrypt – Encrypt a message using the saved key or a custom key. optionally DM someone the message.\n\n/decrypt – Decrypt a message using the saved key or a custom key.\n\n/makekey – Generate a new 32-byte key (URL-safe base64).\n\n/savekey – Save a key to make decoding and encoding faster and easier.\n\n/mykey – View the saved key.\n\n/resetkey – Reset/delete the saved key.", ephemeral=True)
         
 client.run(TOKEN)
