@@ -1,15 +1,17 @@
 import discord
 from discord import app_commands
-from cryptography.fernet import Fernet
+from cryptography.fernet import Fernet, InvalidToken
 import base64
 import json
 import os
+import io
 
 TOKEN = os.environ["BOT_TOKEN"]
 MASTER_KEY = os.environ["MASTER_KEY"].encode()
 f_master = Fernet(MASTER_KEY)
-KEY_FILE = "Documents/DiscordBot/UserKeys.json"
+KEY_FILE = "Documents/Ferbot/UserKeys.json"
 MAX_LENGTH = 2000
+MAX_FILE_SIZE = 26214400
 
 intents = discord.Intents.default()
 intents.message_content = True
@@ -82,7 +84,7 @@ async def makekey(interaction: discord.Interaction):
         key = Fernet.generate_key()
         await interaction.response.send_message(f"Here’s your new key:\n{key.decode()}", ephemeral=True)
     except Exception as e:
-        await interaction.response.send_message(f"Error: {e}", ephemeral=True)
+        await interaction.response.send_message(f"Error:\n {e}", ephemeral=True)
         
 @tree.command(name="savekey", description="Save your encryption key for later use")
 @app_commands.describe(key="Fernet key")
@@ -110,9 +112,62 @@ async def resetkey(interaction: discord.Interaction):
         await interaction.response.send_message("Your saved key has been deleted.", ephemeral=True)
     else:
         await interaction.response.send_message("You don't have a saved key.", ephemeral=True)
+
+@tree.command(name="encryptfile", description="Encrypt an attached file")
+@app_commands.describe(file="Your file", key="Fernet key (optional)", recipient="Addressee (server only)")
+async def encryptfile(interaction: discord.Interaction, file: discord.Attachment, key: str = None, recipient: discord.User = None):
+    if file.size > MAX_FILE_SIZE:
+        await interaction.response.send_message("Failed to encrypt. Discord limits bot file uploads to 25MB.", ephemeral=True)
+        return
+    key = key or user_keys.get(str(interaction.user.id))
+    if not key:
+        await interaction.response.send_message("No key provided and no saved key found. Use /savekey or provide a key.", ephemeral=True)
+        return
+    await interaction.response.defer(ephemeral=True)
+    try:
+        file_bytes = await file.read()
+        f = Fernet(key.encode())
+        encrypted_bytes = f.encrypt(file_bytes)
+        encrypted_file = discord.File(fp=io.BytesIO(encrypted_bytes), filename=f"encrypted_{file.filename}.fernet")
+        if interaction.guild is None or recipient is None:
+            await interaction.followup.send("Encrypted file:\n", file=encrypted_file, ephemeral=True)
+        else:
+            awaitinteraction.followup.send(f"Sending encrypted file to {recipient.name}...", ephemeral=True)
+            try:
+                await recipient.send(file=encrypted_file)
+                await interaction.followup.send(f"File successfully delivered to {recipient.name}!", ephemeral=True)
+            except Exception as e:
+                await interaction.followup.send(f"Failed to send DM. The recipient must share a server with the bot and allow DMs.\nError: {e}", ephemeral=True)
+    except Exception as e:
+        await interaction.followup.send(f"Failed to encrypt file:\n {e}", ephemeral=True)
+        
+@tree.command(name="decryptfile", description="Decrypt an attached file")
+@app_commands.describe(file="Encrypted file", key="Fernet key (optional)")
+async def decryptfile(interaction: discord.Interaction, file: discord.Attachment, key: str = None):
+    if file.size > MAX_FILE_SIZE:
+        await interaction.response.send_message("Failed to decrypt. Discord limits bot file uploads to 25MB.", ephemeral=True)
+        return
+    key = key or user_keys.get(str(interaction.user.id))
+    if not key:
+        await interaction.response.send_message("No key provided and no saved key found. Use /savekey or provide a key.", ephemeral=True)
+        return
+    await interaction.response.defer(ephemeral=True)
+    try:
+        encrypted_bytes = await file.read()
+        f = Fernet(key.encode())
+        decrypted_bytes = f.decrypt(encrypted_bytes)
+        original_name = file.filename.replace("encrypted_", "").replace(".fernet", "")
+        if not original_name:
+            original_name = "decrypted_file"
+        decrypted_file = discord.File(fp=io.BytesIO(decrypted_bytes), filename=original_name)
+        await interaction.followup.send("Decrypted file:\n", file=decrypted_file, ephemeral=True)
+    except InvalidToken:
+        await interaction.followup.send("Failed to decrypt. Invalid key, corrupted file or a wrong file format (.fernet expected).", ephemeral=True)
+    except Exception as e:
+        await interaction.followup.send(f"Failed to decrypt file:\n {e}", ephemeral=True)
         
 @tree.command(name="help", description="Get a list of available commands")
 async def help(interaction: discord.Interaction):
-        await interaction.response.send_message("/encrypt – Encrypt a message using the saved key or a custom key. optionally DM someone the message.\n\n/decrypt – Decrypt a message using the saved key or a custom key.\n\n/makekey – Generate a new 32-byte key (URL-safe base64).\n\n/savekey – Save a key to make decoding and encoding faster and easier.\n\n/mykey – View the saved key.\n\n/resetkey – Reset/delete the saved key.", ephemeral=True)
+        await interaction.response.send_message("/encrypt – Encrypt a message using the saved key or a custom key. optionally DM someone the message.\n\n/decrypt – Decrypt a message using the saved key or a custom key.\n\n/makekey – Generate a new 32-byte key (URL-safe base64).\n\n/savekey – Save a key to make decoding and encoding faster and easier.\n\n/mykey – View the saved key.\n\n/resetkey – Reset/delete the saved key.\n\n/encryptfile – Encrypt a file using the saved key or a custom key. optionally DM someone the file.\n\n/decryptfile – Decrypt a file using the saved key or a custom key.", ephemeral=True)
         
 client.run(TOKEN)
