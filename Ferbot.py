@@ -60,9 +60,11 @@ def save_stats():
         json.dump(bot_stats, f, indent=4)
 
 @client.event
+# After finishing development I should delete everything from here –>
 async def on_ready():
     await tree.sync()
     print(f"Logged in as {client.user}. Bot is ready!")
+# To here –>
 
 @tree.command(name="encrypt", description="Encrypt a message")
 @app_commands.describe(message="Your message", key="Fernet key (optional)", recipient="Addressee (server only)")
@@ -85,11 +87,11 @@ async def encode(interaction: discord.Interaction, message: str, key: str = None
             await interaction.response.defer(ephemeral=True)
             try:
                 await recipient.send(encrypted_message)
-                await interaction.followup.send(f"Message successfully delivered to {recipient.name}.\n\nEncrypted message:\n", encrypted_message, ephemeral=True)
+                await interaction.followup.send(f"Message successfully delivered to {recipient.name}.\n\n**Encrypted message:**\n{encrypted_message}", ephemeral=True)
             except discord.Forbidden as e:
-                await interaction.followup.send(f"**Failed to send DM.** The recipient must allow direct messages from server members and the bot.\nError: {e}.\n\nEncrypted message:\n{encrypted_message}", ephemeral=True)
+                await interaction.followup.send(f"**Failed to send DM.** The recipient must allow direct messages from server members and the bot.\nError: {e}.\n\n**Encrypted message:**\n{encrypted_message}", ephemeral=True)
             except Exception as e:
-                await interaction.followup.send(f"**Failed to send DM.** The recipient must share a server with the bot and allow DMs.\nError: {e}.\n\nEncrypted message:\n{encrypted_message}", ephemeral=True)
+                await interaction.followup.send(f"**Failed to send DM.** The recipient must share a server with the bot and allow DMs.\nError: {e}.\n\n**Encrypted message:**\n{encrypted_message}", ephemeral=True)
             
 @tree.command(name="decrypt", description="Decrypt a message")
 @app_commands.describe(encrypted_message="Encrypted message", key="Fernet key (optional)")
@@ -136,10 +138,10 @@ async def encryptfile(interaction: discord.Interaction, file: discord.Attachment
                 await interaction.followup.send(f"File successfully delivered to {recipient.name}.\n**Encrypted file:**\n", file=encrypted_file, ephemeral=True)
             except discord.Forbidden as e:
                 encrypted_file.reset()
-                await interaction.followup.send(f"**Failed to send the file.** The recipient must allow direct messages from server members and the bot.\nError: {e}.\n\nEncrypted file:\n", file=encrypted_file, ephemeral=True)
+                await interaction.followup.send(f"**Failed to send the file.** The recipient must allow direct messages from server members and the bot.\nError: {e}.\n\n**Encrypted file:**\n", file=encrypted_file, ephemeral=True)
             except Exception as e:
                 encrypted_file.reset()
-                await interaction.followup.send(f"**Failed to send the file.** The recipient must share a server with the bot and allow DMs.\nError: {e}\n\nEncrypted file:\n", file=encrypted_file, ephemeral=True)
+                await interaction.followup.send(f"**Failed to send the file.** The recipient must share a server with the bot and allow DMs.\nError: {e}\n\n**Encrypted file:**\n", file=encrypted_file, ephemeral=True)
     except Exception as e:
         await interaction.followup.send(f"**Failed to encrypt file:** {e}", ephemeral=True)
         
